@@ -185,7 +185,7 @@ func (r *RoundRobin) nextServer() (*server, error) {
 			}
 		}
 		srv := r.servers[r.index]
-		if srv.weight >= r.currentWeight {
+		if srv.weight >= r.currentWeight && srv.weight > 0{
 			return srv, nil
 		}
 	}
