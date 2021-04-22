@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/vulcand/oxy/roundrobin/stickycookie"
 )
 
 // CookieOptions has all the options one would like to set on the affinity cookie
@@ -23,6 +25,8 @@ type CookieOptions struct {
 type StickySession struct {
 	cookieName string
 	options    CookieOptions
+
+	Manager stickycookie.Manager
 }
 
 // NewStickySession creates a new StickySession
@@ -47,15 +51,12 @@ func (s *StickySession) GetBackend(req *http.Request, servers []*url.URL) (*url.
 		return nil, false, err
 	}
 
-	serverURL, err := url.Parse(cookie.Value)
-	if err != nil {
-		return nil, false, err
+	if s.Manager == nil {
+		s.Manager = &stickycookie.DefaultManager{}
 	}
+	server := s.Manager.Find(cookie.Value, servers)
 
-	if s.isBackendAlive(serverURL, servers) {
-		return serverURL, true, nil
-	}
-	return nil, false, nil
+	return server, server != nil, nil
 }
 
 // StickBackend creates and sets the cookie
@@ -79,17 +80,4 @@ func (s *StickySession) StickBackend(backend *url.URL, w *http.ResponseWriter) {
 		SameSite: opt.SameSite,
 	}
 	http.SetCookie(*w, cookie)
-}
-
-func (s *StickySession) isBackendAlive(needle *url.URL, haystack []*url.URL) bool {
-	if len(haystack) == 0 {
-		return false
-	}
-
-	for _, serverURL := range haystack {
-		if sameURL(needle, serverURL) {
-			return true
-		}
-	}
-	return false
 }
