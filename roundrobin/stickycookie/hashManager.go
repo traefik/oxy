@@ -7,12 +7,14 @@ import (
 	"github.com/segmentio/fasthash/fnv1a"
 )
 
+// HashManager manage hashed sticky value.
+type HashManager struct{}
+
 func hash(input string) string {
 	return fmt.Sprintf("%x", fnv1a.HashString64(input))
 }
 
-type HashManager struct{}
-
+// ToValue hashes the sticky value.
 func (o *HashManager) ToValue(raw string) string {
 	return hash(raw)
 }
@@ -22,6 +24,7 @@ func normalized(u *url.URL) string {
 	return normalized.String()
 }
 
+// FindURL get url from array that match the value.
 func (o *HashManager) FindURL(raw string, urls []*url.URL) *url.URL {
 	for _, u := range urls {
 		if raw == hash(normalized(u)) {
