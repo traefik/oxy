@@ -2,12 +2,10 @@ package stickycookie
 
 import "net/url"
 
-// Manager is an interface you can pass to NewStickySessionWithObfuscator,
-// to encode/encrypt/jumble/whatever your StickySession values
-type Manager interface {
+type CookieManager interface {
 	ToValue(string) string
 
-	Find(string, []*url.URL) *url.URL
+	FindURL(string, []*url.URL) *url.URL
 }
 
 // DefaultManager is a no-op that returns the raw/obfuscated strings as-is
@@ -27,7 +25,7 @@ func areEqual(normalized string, u *url.URL) bool {
 	return u1.Scheme == u.Scheme && u1.Host == u.Host && u1.Path == u.Path
 }
 
-func (o *DefaultManager) Find(raw string, urls []*url.URL) *url.URL {
+func (o *DefaultManager) FindURL(raw string, urls []*url.URL) *url.URL {
 	for _, u := range urls {
 		if areEqual(raw, u) {
 			return u

@@ -426,10 +426,10 @@ func TestStickySession_GetBackend(t *testing.T) {
 	defaultManager := &stickycookie.DefaultManager{}
 	hashManager := &stickycookie.HashManager{}
 	tests := []struct {
-		name    string
-		Manager stickycookie.Manager
-		cookie  *http.Cookie
-		want    *url.URL
+		name          string
+		CookieManager stickycookie.CookieManager
+		cookie        *http.Cookie
+		want          *url.URL
 	}{
 		{
 			name: "NoCookies",
@@ -470,33 +470,33 @@ func TestStickySession_GetBackend(t *testing.T) {
 			want:   servers[3],
 		},
 		{
-			name:    "Cookie no matched with DefaultManager",
-			Manager: defaultManager,
-			cookie:  &http.Cookie{Name: "not" + cookieName, Value: defaultManager.ToValue("http://10.10.10.10/")},
+			name:          "Cookie no matched with DefaultManager",
+			CookieManager: defaultManager,
+			cookie:        &http.Cookie{Name: "not" + cookieName, Value: defaultManager.ToValue("http://10.10.10.10/")},
 		},
 		{
-			name:    "Cookie no matched with HashManager",
-			Manager: hashManager,
-			cookie:  &http.Cookie{Name: "not" + cookieName, Value: hashManager.ToValue("http://10.10.10.10/")},
+			name:          "Cookie no matched with HashManager",
+			CookieManager: hashManager,
+			cookie:        &http.Cookie{Name: "not" + cookieName, Value: hashManager.ToValue("http://10.10.10.10/")},
 		},
 		{
-			name:    "Cookie value not matched with HashManager",
-			Manager: hashManager,
-			cookie:  &http.Cookie{Name: cookieName, Value: hashManager.ToValue("http://10.10.10.255/")},
+			name:          "Cookie value not matched with HashManager",
+			CookieManager: hashManager,
+			cookie:        &http.Cookie{Name: cookieName, Value: hashManager.ToValue("http://10.10.10.255/")},
 		},
 		{
-			name:    "simple with HashManager",
-			Manager: hashManager,
-			cookie:  &http.Cookie{Name: cookieName, Value: hashManager.ToValue("http://10.10.10.10/")},
-			want:    servers[0],
+			name:          "simple with HashManager",
+			CookieManager: hashManager,
+			cookie:        &http.Cookie{Name: cookieName, Value: hashManager.ToValue("http://10.10.10.10/")},
+			want:          servers[0],
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &StickySession{
-				cookieName: cookieName,
-				options:    CookieOptions{},
-				Manager:    tt.Manager,
+				cookieName:    cookieName,
+				options:       CookieOptions{},
+				CookieManager: tt.CookieManager,
 			}
 
 			req := httptest.NewRequest(http.MethodGet, "http://foo", nil)

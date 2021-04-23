@@ -22,7 +22,7 @@ func normalized(u *url.URL) string {
 	return normalized.String()
 }
 
-func (o *HashManager) Find(raw string, urls []*url.URL) *url.URL {
+func (o *HashManager) FindURL(raw string, urls []*url.URL) *url.URL {
 	for _, u := range urls {
 		if raw == hash(normalized(u)) {
 			return u

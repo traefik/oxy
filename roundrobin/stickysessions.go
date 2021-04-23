@@ -26,7 +26,7 @@ type StickySession struct {
 	cookieName string
 	options    CookieOptions
 
-	Manager stickycookie.Manager
+	CookieManager stickycookie.CookieManager
 }
 
 // NewStickySession creates a new StickySession
@@ -51,10 +51,10 @@ func (s *StickySession) GetBackend(req *http.Request, servers []*url.URL) (*url.
 		return nil, false, err
 	}
 
-	if s.Manager == nil {
-		s.Manager = &stickycookie.DefaultManager{}
+	if s.CookieManager == nil {
+		s.CookieManager = &stickycookie.DefaultManager{}
 	}
-	server := s.Manager.Find(cookie.Value, servers)
+	server := s.CookieManager.FindURL(cookie.Value, servers)
 
 	return server, server != nil, nil
 }
