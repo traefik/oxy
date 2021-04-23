@@ -26,18 +26,24 @@ type StickySession struct {
 	cookieName string
 	options    CookieOptions
 
-	CookieManager stickycookie.CookieManager
+	cookieManager stickycookie.CookieManager
 }
 
 // NewStickySession creates a new StickySession
 func NewStickySession(cookieName string) *StickySession {
-	return &StickySession{cookieName: cookieName}
+	return &StickySession{cookieName: cookieName, cookieManager: &stickycookie.DefaultManager{}}
 }
 
 // NewStickySessionWithOptions creates a new StickySession whilst allowing for options to
 // shape its affinity cookie such as "httpOnly" or "secure"
 func NewStickySessionWithOptions(cookieName string, options CookieOptions) *StickySession {
-	return &StickySession{cookieName: cookieName, options: options}
+	return &StickySession{cookieName: cookieName, options: options, cookieManager: &stickycookie.DefaultManager{}}
+}
+
+// SetCookieManager set the cookieManager for the StickySession
+func (s *StickySession) SetCookieManager(manager stickycookie.CookieManager) *StickySession {
+	s.cookieManager = manager
+	return s
 }
 
 // GetBackend returns the backend URL stored in the sticky cookie, iff the backend is still in the valid list of servers.
@@ -51,10 +57,7 @@ func (s *StickySession) GetBackend(req *http.Request, servers []*url.URL) (*url.
 		return nil, false, err
 	}
 
-	if s.CookieManager == nil {
-		s.CookieManager = &stickycookie.DefaultManager{}
-	}
-	server := s.CookieManager.FindURL(cookie.Value, servers)
+	server := s.cookieManager.FindURL(cookie.Value, servers)
 
 	return server, server != nil, nil
 }
@@ -70,7 +73,7 @@ func (s *StickySession) StickBackend(backend *url.URL, w *http.ResponseWriter) {
 
 	cookie := &http.Cookie{
 		Name:     s.cookieName,
-		Value:    backend.String(),
+		Value:    s.cookieManager.ToValue(backend.String()),
 		Path:     cp,
 		Domain:   opt.Domain,
 		Expires:  opt.Expires,

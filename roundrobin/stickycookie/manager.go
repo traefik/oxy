@@ -15,7 +15,7 @@ func (o *DefaultManager) ToValue(raw string) string {
 	return raw
 }
 
-// AreEqual takes two string and check if the values are equal
+// areEqual compare a string to a url and check if the string is the same as the url value
 func areEqual(normalized string, u *url.URL) bool {
 	u1, err := url.Parse(normalized)
 	if err != nil {
@@ -25,6 +25,7 @@ func areEqual(normalized string, u *url.URL) bool {
 	return u1.Scheme == u.Scheme && u1.Host == u.Host && u1.Path == u.Path
 }
 
+// FindURL get url from array
 func (o *DefaultManager) FindURL(raw string, urls []*url.URL) *url.URL {
 	for _, u := range urls {
 		if areEqual(raw, u) {
