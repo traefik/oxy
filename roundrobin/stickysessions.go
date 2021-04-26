@@ -57,9 +57,9 @@ func (s *StickySession) GetBackend(req *http.Request, servers []*url.URL) (*url.
 		return nil, false, err
 	}
 
-	server := s.cookieManager.FindURL(cookie.Value, servers)
+	server, err := s.cookieManager.FindURL(cookie.Value, servers)
 
-	return server, server != nil, nil
+	return server, server != nil, err
 }
 
 // StickBackend creates and sets the cookie

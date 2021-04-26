@@ -127,6 +127,8 @@ func TestBasicWithAESManager(t *testing.T) {
 	require.NotNil(t, sticky)
 
 	aesManager, err := stickycookie.NewAESManager([]byte("95Bx9JkKX3xbd7z3"), 5*time.Second)
+	require.NoError(t, err)
+
 	sticky.SetCookieManager(aesManager)
 	require.NotNil(t, sticky.cookieManager)
 
@@ -164,7 +166,6 @@ func TestBasicWithAESManager(t *testing.T) {
 			cookie = resp.Cookies()[0]
 		}
 		assert.Equal(t, "test", cookie.Name)
-		assert.Equal(t, a.URL, aesManager.Normalized2(cookie.Value))
 	}
 }
 
@@ -535,11 +536,20 @@ func TestStickySession_GetBackend(t *testing.T) {
 	defaultManager := &stickycookie.DefaultManager{}
 	hashManager := &stickycookie.HashManager{}
 	saltyHashManager := &stickycookie.HashManager{"test salt"}
+	aesManager, err := stickycookie.NewAESManager([]byte("95Bx9JkKX3xbd7z3"), 5*time.Second)
+	aesManagerInfinite, err := stickycookie.NewAESManager([]byte("95Bx9JkKX3xbd7z3"), 0)
+	require.NoError(t, err)
+	aesManagerExpired, err := stickycookie.NewAESManager([]byte("95Bx9JkKX3xbd7z3"), 1*time.Nanosecond)
+	require.NoError(t, err)
+
+	require.NoError(t, err)
+
 	tests := []struct {
 		name          string
 		CookieManager stickycookie.CookieManager
 		cookie        *http.Cookie
 		want          *url.URL
+		expectError   bool
 	}{
 		{
 			name: "NoCookies",
@@ -549,8 +559,9 @@ func TestStickySession_GetBackend(t *testing.T) {
 			cookie: &http.Cookie{Name: "not" + cookieName, Value: "http://10.10.10.10/"},
 		},
 		{
-			name:   "Cookie not a URL",
-			cookie: &http.Cookie{Name: cookieName, Value: "foo://foo bar"},
+			name:        "Cookie not a URL",
+			cookie:      &http.Cookie{Name: cookieName, Value: "foo://foo bar"},
+			expectError: true,
 		},
 		{
 			name:   "Simple",
@@ -606,6 +617,40 @@ func TestStickySession_GetBackend(t *testing.T) {
 			cookie:        &http.Cookie{Name: cookieName, Value: saltyHashManager.ToValue("http://10.10.10.10/")},
 			want:          servers[0],
 		},
+		{
+			name:          "Cookie value not matched with AESManager",
+			CookieManager: aesManager,
+			cookie:        &http.Cookie{Name: cookieName, Value: aesManager.ToValue("http://10.10.10.255/")},
+		},
+		{
+			name:          "simple with AESManager",
+			CookieManager: aesManager,
+			cookie:        &http.Cookie{Name: cookieName, Value: aesManager.ToValue("http://10.10.10.10/")},
+			want:          servers[0],
+		},
+		{
+			name:          "Cookie value not matched with AESManager with ttl 0s",
+			CookieManager: aesManagerInfinite,
+			cookie:        &http.Cookie{Name: cookieName, Value: aesManagerInfinite.ToValue("http://10.10.10.255/")},
+		},
+		{
+			name:          "simple with AESManager with ttl 0s",
+			CookieManager: aesManagerInfinite,
+			cookie:        &http.Cookie{Name: cookieName, Value: aesManagerInfinite.ToValue("http://10.10.10.10/")},
+			want:          servers[0],
+		},
+		{
+			name:          "simple with AESManager with ttl 0s",
+			CookieManager: aesManagerInfinite,
+			cookie:        &http.Cookie{Name: cookieName, Value: aesManagerInfinite.ToValue("http://10.10.10.10/")},
+			want:          servers[0],
+		},
+		{
+			name:          "simple with AESManager with expired ttl",
+			CookieManager: aesManagerExpired,
+			cookie:        &http.Cookie{Name: cookieName, Value: aesManagerExpired.ToValue("http://10.10.10.10/")},
+			expectError:   true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -619,6 +664,11 @@ func TestStickySession_GetBackend(t *testing.T) {
 				req.AddCookie(tt.cookie)
 			}
 			got, _, err := s.GetBackend(req, servers)
+			if tt.expectError {
+				assert.Error(t, err)
+				return
+			}
+
 			require.NoError(t, err)
 			if !reflect.DeepEqual(tt.want, got) {
 				t.Errorf("GetBackend() failed, got %v, want %v", got, tt.want)

@@ -7,6 +7,8 @@ import (
 	"github.com/segmentio/fasthash/fnv1a"
 )
 
+var _ CookieManager = (*HashManager)(nil)
+
 // HashManager manage hashed sticky value.
 type HashManager struct {
 	// Salt secret to anonymize the hashed cookie
@@ -28,12 +30,12 @@ func normalized(u *url.URL) string {
 }
 
 // FindURL get url from array that match the value.
-func (hm *HashManager) FindURL(raw string, urls []*url.URL) *url.URL {
+func (hm *HashManager) FindURL(raw string, urls []*url.URL) (*url.URL, error) {
 	for _, u := range urls {
 		if raw == hm.hash(normalized(u)) {
-			return u
+			return u, nil
 		}
 	}
 
-	return nil
+	return nil, nil
 }
