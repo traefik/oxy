@@ -72,7 +72,7 @@ func TestBasicWithHashManager(t *testing.T) {
 	sticky := NewStickySession("test")
 	require.NotNil(t, sticky)
 
-	sticky.SetCookieManager(&stickycookie.DefaultManager{})
+	sticky.SetCookieManager(&stickycookie.HashManager{Salt: "foo"})
 	require.NotNil(t, sticky.cookieManager)
 
 	lb, err := New(fwd, EnableStickySession(sticky))
@@ -110,6 +110,61 @@ func TestBasicWithHashManager(t *testing.T) {
 		}
 		assert.Equal(t, "test", cookie.Name)
 		assert.Equal(t, sticky.cookieManager.ToValue(a.URL), cookie.Value)
+	}
+}
+
+func TestBasicWithAESManager(t *testing.T) {
+	a := testutils.NewResponder("a")
+	b := testutils.NewResponder("b")
+
+	defer a.Close()
+	defer b.Close()
+
+	fwd, err := forward.New()
+	require.NoError(t, err)
+
+	sticky := NewStickySession("test")
+	require.NotNil(t, sticky)
+
+	aesManager, err := stickycookie.NewAESManager([]byte("95Bx9JkKX3xbd7z3"), 5*time.Second)
+	sticky.SetCookieManager(aesManager)
+	require.NotNil(t, sticky.cookieManager)
+
+	lb, err := New(fwd, EnableStickySession(sticky))
+	require.NoError(t, err)
+
+	err = lb.UpsertServer(testutils.ParseURI(a.URL))
+	require.NoError(t, err)
+	err = lb.UpsertServer(testutils.ParseURI(b.URL))
+	require.NoError(t, err)
+
+	proxy := httptest.NewServer(lb)
+	defer proxy.Close()
+
+	client := http.DefaultClient
+	var cookie *http.Cookie
+	for i := 0; i < 10; i++ {
+		req, err := http.NewRequest(http.MethodGet, proxy.URL, nil)
+		require.NoError(t, err)
+		if cookie != nil {
+			req.AddCookie(cookie)
+		}
+
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+
+		body, err := ioutil.ReadAll(resp.Body)
+		defer resp.Body.Close()
+
+		require.NoError(t, err)
+		assert.Equal(t, "a", string(body))
+
+		if cookie == nil {
+			// The first request will set the cookie value
+			cookie = resp.Cookies()[0]
+		}
+		assert.Equal(t, "test", cookie.Name)
+		assert.Equal(t, a.URL, aesManager.Normalized2(cookie.Value))
 	}
 }
 
