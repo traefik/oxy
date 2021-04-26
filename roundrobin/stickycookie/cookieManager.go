@@ -15,3 +15,13 @@ type CookieManager interface {
 	// FindURL get url from array that match the value.
 	FindURL(string, []*url.URL) (*url.URL, error)
 }
+
+// areURLEqual compare a string to a url and check if the string is the same as the url value.
+func areURLEqual(normalized string, u *url.URL) (bool, error) {
+	u1, err := url.Parse(normalized)
+	if err != nil {
+		return false, err
+	}
+
+	return u1.Scheme == u.Scheme && u1.Host == u.Host && u1.Path == u.Path, nil
+}

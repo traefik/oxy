@@ -128,7 +128,7 @@ func (am *AESManager) FindURL(raw string, urls []*url.URL) (*url.URL, error) {
 	}
 
 	for _, u := range urls {
-		ok, err := areEqual(rawURL, u)
+		ok, err := areURLEqual(rawURL, u)
 		if err != nil {
 			return nil, err
 		}
