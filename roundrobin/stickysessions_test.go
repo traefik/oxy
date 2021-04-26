@@ -479,6 +479,7 @@ func TestStickySession_GetBackend(t *testing.T) {
 	}
 	defaultManager := &stickycookie.DefaultManager{}
 	hashManager := &stickycookie.HashManager{}
+	saltyHashManager := &stickycookie.HashManager{"test salt"}
 	tests := []struct {
 		name          string
 		CookieManager stickycookie.CookieManager
@@ -542,6 +543,12 @@ func TestStickySession_GetBackend(t *testing.T) {
 			name:          "simple with HashManager",
 			CookieManager: hashManager,
 			cookie:        &http.Cookie{Name: cookieName, Value: hashManager.ToValue("http://10.10.10.10/")},
+			want:          servers[0],
+		},
+		{
+			name:          "simple with HashManager and salt",
+			CookieManager: saltyHashManager,
+			cookie:        &http.Cookie{Name: cookieName, Value: saltyHashManager.ToValue("http://10.10.10.10/")},
 			want:          servers[0],
 		},
 	}

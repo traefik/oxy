@@ -8,15 +8,18 @@ import (
 )
 
 // HashManager manage hashed sticky value.
-type HashManager struct{}
+type HashManager struct {
+	// Salt secret to anonymize the hashed cookie
+	Salt string
+}
 
-func hash(input string) string {
-	return fmt.Sprintf("%x", fnv1a.HashString64(input))
+func (hm *HashManager) hash(input string) string {
+	return fmt.Sprintf("%x", fnv1a.HashString64(hm.Salt+input))
 }
 
 // ToValue hashes the sticky value.
-func (o *HashManager) ToValue(raw string) string {
-	return hash(raw)
+func (hm *HashManager) ToValue(raw string) string {
+	return hm.hash(raw)
 }
 
 func normalized(u *url.URL) string {
@@ -25,9 +28,9 @@ func normalized(u *url.URL) string {
 }
 
 // FindURL get url from array that match the value.
-func (o *HashManager) FindURL(raw string, urls []*url.URL) *url.URL {
+func (hm *HashManager) FindURL(raw string, urls []*url.URL) *url.URL {
 	for _, u := range urls {
-		if raw == hash(normalized(u)) {
+		if raw == hm.hash(normalized(u)) {
 			return u
 		}
 	}
