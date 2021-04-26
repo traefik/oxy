@@ -1,6 +1,7 @@
 package stickycookie
 
 import (
+	"errors"
 	"net/url"
 )
 
@@ -10,6 +11,26 @@ var _ CookieManager = (*MigrationManager)(nil)
 type MigrationManager struct {
 	From CookieManager
 	To   CookieManager
+}
+
+// NewMigrationManager creates a new MigrationManager
+func NewMigrationManager(From CookieManager, To CookieManager) (CookieManager, error) {
+	if From == nil && To == nil {
+		return nil, errors.New("no CookieManager defined")
+	}
+
+	if From == nil {
+		return To, nil
+	}
+
+	if To == nil {
+		return From, nil
+	}
+
+	return &MigrationManager{
+		From: From,
+		To:   To,
+	}, nil
 }
 
 // ToValue hashes the sticky value.
