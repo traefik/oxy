@@ -15,41 +15,36 @@ import (
 	"time"
 )
 
-var _ CookieManager = (*AESManager)(nil)
-
-// AESManager manage hashed sticky value.
-type AESManager struct {
+// AESValue manage hashed sticky value.
+type AESValue struct {
 	block cipher.AEAD
 	ttl   time.Duration
 }
 
 // NewAESManager takes a fixed-size key and returns an Manager or an error.
 // Key size must be exactly one of 16, 24, or 32 bytes to select AES-128, AES-192, or AES-256.
-func NewAESManager(key []byte, ttl time.Duration) (*AESManager, error) {
+func NewAESManager(key []byte, ttl time.Duration) (*AESValue, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 
-	aesgcm, err := cipher.NewGCM(block)
+	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return nil, err
 	}
 
-	return &AESManager{
-		block: aesgcm,
-		ttl:   ttl,
-	}, nil
+	return &AESValue{block: gcm, ttl: ttl}, nil
 }
 
 // ToValue hashes the sticky value.
-func (am *AESManager) ToValue(raw string) string {
-	if am.ttl > 0 {
-		raw = fmt.Sprintf("%s|%d", raw, time.Now().UTC().Add(am.ttl).Unix())
+func (v *AESValue) ToValue(raw string) string {
+	if v.ttl > 0 {
+		raw = fmt.Sprintf("%s|%d", raw, time.Now().UTC().Add(v.ttl).Unix())
 	}
 
 	// Nonce is the 64bit nanosecond-resolution time, plus 32bits of crypto/rand, for 96bits (12Bytes).
-	// Theoretically, if 2^32 calls were made in 1 nanosecon, there might be a repeat.
+	// Theoretically, if 2^32 calls were made in 1 nanoseconds, there might be a repeat.
 	// Adds ~765ns, and 4B heap in 1 alloc
 	nonce := make([]byte, 12)
 	binary.PutVarint(nonce, time.Now().UnixNano())
@@ -68,7 +63,7 @@ func (am *AESManager) ToValue(raw string) string {
 		nonce[i+8] = rpend[i]
 	}
 
-	obfuscated := am.block.Seal(nil, nonce, []byte(raw), nil)
+	obfuscated := v.block.Seal(nil, nonce, []byte(raw), nil)
 	// We append the 12byte nonce onto the end of the message
 	obfuscated = append(obfuscated, nonce...)
 	obfuscatedStr := base64.RawURLEncoding.EncodeToString(obfuscated)
@@ -76,7 +71,7 @@ func (am *AESManager) ToValue(raw string) string {
 	return obfuscatedStr
 }
 
-func (am *AESManager) fromValue(obfuscatedStr string) (string, error) {
+func (v *AESValue) fromValue(obfuscatedStr string) (string, error) {
 	obfuscated, err := base64.RawURLEncoding.DecodeString(obfuscatedStr)
 	if err != nil {
 		return "", err
@@ -92,19 +87,19 @@ func (am *AESManager) fromValue(obfuscatedStr string) (string, error) {
 	nonce := obfuscated[n:]
 	obfuscated = obfuscated[:n]
 
-	raw, err := am.block.Open(nil, nonce, []byte(obfuscated), nil)
+	raw, err := v.block.Open(nil, nonce, []byte(obfuscated), nil)
 	if err != nil {
 		return "", err
 	}
 
-	if am.ttl > 0 {
-		rawparts := strings.Split(string(raw), "|")
-		if len(rawparts) < 2 {
+	if v.ttl > 0 {
+		rawParts := strings.Split(string(raw), "|")
+		if len(rawParts) < 2 {
 			return "", fmt.Errorf("TTL set but cookie doesn't contain an expiration: '%s'", raw)
 		}
 
 		// validate the ttl
-		i, err := strconv.ParseInt(rawparts[1], 10, 64)
+		i, err := strconv.ParseInt(rawParts[1], 10, 64)
 		if err != nil {
 			return "", err
 		}
@@ -114,15 +109,15 @@ func (am *AESManager) fromValue(obfuscatedStr string) (string, error) {
 			return "", fmt.Errorf("TTL expired: '%s' (%s)\n", raw, strTime)
 		}
 
-		raw = []byte(rawparts[0])
+		raw = []byte(rawParts[0])
 	}
 
 	return string(raw), nil
 }
 
 // FindURL get url from array that match the value.
-func (am *AESManager) FindURL(raw string, urls []*url.URL) (*url.URL, error) {
-	rawURL, err := am.fromValue(raw)
+func (v *AESValue) FindURL(raw string, urls []*url.URL) (*url.URL, error) {
+	rawURL, err := v.fromValue(raw)
 	if err != nil {
 		return nil, err
 	}

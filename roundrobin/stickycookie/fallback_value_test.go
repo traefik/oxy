@@ -19,14 +19,14 @@ func TestName(t *testing.T) {
 		{Scheme: "http", Host: "10.10.10.10", Path: "/"},
 	}
 
-	hashManager := &HashManager{Salt: "foo"}
-	defaultManager := &DefaultManager{}
+	hashManager := &HashValue{Salt: "foo"}
+	defaultManager := &RawValue{}
 	aesManager, err := NewAESManager([]byte("95Bx9JkKX3xbd7z3"), 5*time.Second)
 	require.NoError(t, err)
 
 	managers := []struct {
 		Name          string
-		CookieManager CookieManager
+		CookieManager CookieValue
 	}{
 		{"defaultManager", defaultManager},
 		{"hashManager", hashManager},
@@ -83,104 +83,104 @@ func TestManager(t *testing.T) {
 		{Scheme: "http", Host: "10.10.10.11", Path: "/", User: url.User("John Doe")},
 	}
 
-	hashManager := &HashManager{Salt: "foo"}
-	defaultManager := &DefaultManager{}
+	hashManager := &HashValue{Salt: "foo"}
+	defaultManager := &RawValue{}
 	aesManager, err := NewAESManager([]byte("95Bx9JkKX3xbd7z3"), 5*time.Second)
 	require.NoError(t, err)
 
 	tests := []struct {
 		name             string
-		From             CookieManager
-		To               CookieManager
+		From             CookieValue
+		To               CookieValue
 		rawValue         string
 		want             *url.URL
 		expectError      bool
 		expectErrorOnNew bool
 	}{
 		{
-			name:     "From DefaultManager To HashManager with DefaultManager value",
+			name:     "From RawValue To HashValue with RawValue value",
 			From:     defaultManager,
 			To:       hashManager,
 			rawValue: "http://10.10.10.10/",
 			want:     servers[0],
 		},
 		{
-			name:     "From DefaultManager To HashManager with DefaultManager non matching value",
+			name:     "From RawValue To HashValue with RawValue non matching value",
 			From:     defaultManager,
 			To:       hashManager,
 			rawValue: "http://24.10.10.10/",
 		},
 		{
-			name:     "From DefaultManager To HashManager with HashManager value",
+			name:     "From RawValue To HashValue with HashValue value",
 			From:     defaultManager,
 			To:       hashManager,
 			rawValue: hashManager.ToValue("http://10.10.10.10/"),
 			want:     servers[0],
 		},
 		{
-			name:     "From DefaultManager To HashManager with HashManager non matching value",
+			name:     "From RawValue To HashValue with HashValue non matching value",
 			From:     defaultManager,
 			To:       hashManager,
 			rawValue: hashManager.ToValue("http://24.10.10.10/"),
 		},
 		{
-			name:     "From HashManager To AESManager with AESManager value",
+			name:     "From HashValue To AESValue with AESValue value",
 			From:     hashManager,
 			To:       aesManager,
 			rawValue: aesManager.ToValue("http://10.10.10.10/"),
 			want:     servers[0],
 		},
 		{
-			name:     "From HashManager To AESManager with AESManager non matching value",
+			name:     "From HashValue To AESValue with AESValue non matching value",
 			From:     hashManager,
 			To:       aesManager,
 			rawValue: aesManager.ToValue("http://24.10.10.10/"),
 		},
 		{
-			name:     "From HashManager To AESManager with HashManager value",
+			name:     "From HashValue To AESValue with HashValue value",
 			From:     hashManager,
 			To:       aesManager,
 			rawValue: hashManager.ToValue("http://10.10.10.10/"),
 			want:     servers[0],
 		},
 		{
-			name:     "From HashManager To AESManager with AESManager non matching value",
+			name:     "From HashValue To AESValue with AESValue non matching value",
 			From:     hashManager,
 			To:       aesManager,
 			rawValue: aesManager.ToValue("http://24.10.10.10/"),
 		},
 		{
-			name:     "From AESManager To AESManager with AESManager value",
+			name:     "From AESValue To AESValue with AESValue value",
 			From:     aesManager,
 			To:       aesManager,
 			rawValue: aesManager.ToValue("http://10.10.10.10/"),
 			want:     servers[0],
 		},
 		{
-			name:     "From AESManager To AESManager with AESManager non matching value",
+			name:     "From AESValue To AESValue with AESValue non matching value",
 			From:     aesManager,
 			To:       aesManager,
 			rawValue: aesManager.ToValue("http://24.10.10.10/"),
 		},
 		{
-			name:     "From nil To AESManager with AESManager with matching value",
+			name:     "From nil To AESValue with AESValue with matching value",
 			To:       aesManager,
 			rawValue: aesManager.ToValue("http://10.10.10.10/"),
 			want:     servers[0],
 		},
 		{
-			name:     "From HashManager To nil with HashManager with matching value",
+			name:     "From HashValue To nil with HashValue with matching value",
 			From:     hashManager,
 			rawValue: hashManager.ToValue("http://10.10.10.10/"),
 			want:     servers[0],
 		},
 		{
-			name:     "From nil To AESManager with AESManager non matching value",
+			name:     "From nil To AESValue with AESValue non matching value",
 			To:       aesManager,
 			rawValue: aesManager.ToValue("http://24.10.10.10/"),
 		},
 		{
-			name:     "From HashManager To nil with HashManager non matching value",
+			name:     "From HashValue To nil with HashValue non matching value",
 			From:     hashManager,
 			rawValue: hashManager.ToValue("http://24.10.10.10/"),
 		},
@@ -189,7 +189,7 @@ func TestManager(t *testing.T) {
 			expectErrorOnNew: true,
 		},
 		{
-			name:     "From AESManager To HashManager with HashManager non matching value",
+			name:     "From AESValue To HashValue with HashValue non matching value",
 			From:     aesManager,
 			To:       hashManager,
 			rawValue: hashManager.ToValue("http://24.10.10.10/"),

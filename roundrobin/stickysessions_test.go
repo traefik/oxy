@@ -72,7 +72,7 @@ func TestBasicWithHashManager(t *testing.T) {
 	sticky := NewStickySession("test")
 	require.NotNil(t, sticky)
 
-	sticky.SetCookieManager(&stickycookie.HashManager{Salt: "foo"})
+	sticky.SetCookieManager(&stickycookie.HashValue{Salt: "foo"})
 	require.NotNil(t, sticky.cookieManager)
 
 	lb, err := New(fwd, EnableStickySession(sticky))
@@ -533,9 +533,9 @@ func TestStickySession_GetBackend(t *testing.T) {
 		{Scheme: "http", Host: "10.10.10.10", Path: "/foo"},
 		{Scheme: "http", Host: "10.10.10.11", Path: "/", User: url.User("John Doe")},
 	}
-	defaultManager := &stickycookie.DefaultManager{}
-	hashManager := &stickycookie.HashManager{}
-	saltyHashManager := &stickycookie.HashManager{"test salt"}
+	defaultManager := &stickycookie.RawValue{}
+	hashManager := &stickycookie.HashValue{}
+	saltyHashManager := &stickycookie.HashValue{"test salt"}
 	aesManager, err := stickycookie.NewAESManager([]byte("95Bx9JkKX3xbd7z3"), 5*time.Second)
 	aesManagerInfinite, err := stickycookie.NewAESManager([]byte("95Bx9JkKX3xbd7z3"), 0)
 	require.NoError(t, err)
@@ -546,7 +546,7 @@ func TestStickySession_GetBackend(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		CookieManager stickycookie.CookieManager
+		CookieManager stickycookie.CookieValue
 		cookie        *http.Cookie
 		want          *url.URL
 		expectError   bool
@@ -591,62 +591,62 @@ func TestStickySession_GetBackend(t *testing.T) {
 			want:   servers[3],
 		},
 		{
-			name:          "Cookie no matched with DefaultManager",
+			name:          "Cookie no matched with RawValue",
 			CookieManager: defaultManager,
 			cookie:        &http.Cookie{Name: "not" + cookieName, Value: defaultManager.ToValue("http://10.10.10.10/")},
 		},
 		{
-			name:          "Cookie no matched with HashManager",
+			name:          "Cookie no matched with HashValue",
 			CookieManager: hashManager,
 			cookie:        &http.Cookie{Name: "not" + cookieName, Value: hashManager.ToValue("http://10.10.10.10/")},
 		},
 		{
-			name:          "Cookie value not matched with HashManager",
+			name:          "Cookie value not matched with HashValue",
 			CookieManager: hashManager,
 			cookie:        &http.Cookie{Name: cookieName, Value: hashManager.ToValue("http://10.10.10.255/")},
 		},
 		{
-			name:          "simple with HashManager",
+			name:          "simple with HashValue",
 			CookieManager: hashManager,
 			cookie:        &http.Cookie{Name: cookieName, Value: hashManager.ToValue("http://10.10.10.10/")},
 			want:          servers[0],
 		},
 		{
-			name:          "simple with HashManager and salt",
+			name:          "simple with HashValue and salt",
 			CookieManager: saltyHashManager,
 			cookie:        &http.Cookie{Name: cookieName, Value: saltyHashManager.ToValue("http://10.10.10.10/")},
 			want:          servers[0],
 		},
 		{
-			name:          "Cookie value not matched with AESManager",
+			name:          "Cookie value not matched with AESValue",
 			CookieManager: aesManager,
 			cookie:        &http.Cookie{Name: cookieName, Value: aesManager.ToValue("http://10.10.10.255/")},
 		},
 		{
-			name:          "simple with AESManager",
+			name:          "simple with AESValue",
 			CookieManager: aesManager,
 			cookie:        &http.Cookie{Name: cookieName, Value: aesManager.ToValue("http://10.10.10.10/")},
 			want:          servers[0],
 		},
 		{
-			name:          "Cookie value not matched with AESManager with ttl 0s",
+			name:          "Cookie value not matched with AESValue with ttl 0s",
 			CookieManager: aesManagerInfinite,
 			cookie:        &http.Cookie{Name: cookieName, Value: aesManagerInfinite.ToValue("http://10.10.10.255/")},
 		},
 		{
-			name:          "simple with AESManager with ttl 0s",
+			name:          "simple with AESValue with ttl 0s",
 			CookieManager: aesManagerInfinite,
 			cookie:        &http.Cookie{Name: cookieName, Value: aesManagerInfinite.ToValue("http://10.10.10.10/")},
 			want:          servers[0],
 		},
 		{
-			name:          "simple with AESManager with ttl 0s",
+			name:          "simple with AESValue with ttl 0s",
 			CookieManager: aesManagerInfinite,
 			cookie:        &http.Cookie{Name: cookieName, Value: aesManagerInfinite.ToValue("http://10.10.10.10/")},
 			want:          servers[0],
 		},
 		{
-			name:          "simple with AESManager with expired ttl",
+			name:          "simple with AESValue with expired ttl",
 			CookieManager: aesManagerExpired,
 			cookie:        &http.Cookie{Name: cookieName, Value: aesManagerExpired.ToValue("http://10.10.10.10/")},
 			expectError:   true,

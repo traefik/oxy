@@ -7,21 +7,19 @@ import (
 	"github.com/segmentio/fasthash/fnv1a"
 )
 
-var _ CookieManager = (*HashManager)(nil)
-
-// HashManager manage hashed sticky value.
-type HashManager struct {
+// HashValue manage hashed sticky value.
+type HashValue struct {
 	// Salt secret to anonymize the hashed cookie
 	Salt string
 }
 
-func (hm *HashManager) hash(input string) string {
-	return fmt.Sprintf("%x", fnv1a.HashString64(hm.Salt+input))
+func (v *HashValue) hash(input string) string {
+	return fmt.Sprintf("%x", fnv1a.HashString64(v.Salt+input))
 }
 
 // ToValue hashes the sticky value.
-func (hm *HashManager) ToValue(raw string) string {
-	return hm.hash(raw)
+func (v *HashValue) ToValue(raw string) string {
+	return v.hash(raw)
 }
 
 func normalized(u *url.URL) string {
@@ -30,9 +28,9 @@ func normalized(u *url.URL) string {
 }
 
 // FindURL get url from array that match the value.
-func (hm *HashManager) FindURL(raw string, urls []*url.URL) (*url.URL, error) {
+func (v *HashValue) FindURL(raw string, urls []*url.URL) (*url.URL, error) {
 	for _, u := range urls {
-		if raw == hm.hash(normalized(u)) {
+		if raw == v.hash(normalized(u)) {
 			return u, nil
 		}
 	}

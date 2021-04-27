@@ -26,22 +26,22 @@ type StickySession struct {
 	cookieName string
 	options    CookieOptions
 
-	cookieManager stickycookie.CookieManager
+	cookieManager stickycookie.CookieValue
 }
 
 // NewStickySession creates a new StickySession
 func NewStickySession(cookieName string) *StickySession {
-	return &StickySession{cookieName: cookieName, cookieManager: &stickycookie.DefaultManager{}}
+	return &StickySession{cookieName: cookieName, cookieManager: &stickycookie.RawValue{}}
 }
 
 // NewStickySessionWithOptions creates a new StickySession whilst allowing for options to
 // shape its affinity cookie such as "httpOnly" or "secure"
 func NewStickySessionWithOptions(cookieName string, options CookieOptions) *StickySession {
-	return &StickySession{cookieName: cookieName, options: options, cookieManager: &stickycookie.DefaultManager{}}
+	return &StickySession{cookieName: cookieName, options: options, cookieManager: &stickycookie.RawValue{}}
 }
 
 // SetCookieManager set the cookieManager for the StickySession
-func (s *StickySession) SetCookieManager(manager stickycookie.CookieManager) *StickySession {
+func (s *StickySession) SetCookieManager(manager stickycookie.CookieValue) *StickySession {
 	s.cookieManager = manager
 	return s
 }
