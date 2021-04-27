@@ -4,10 +4,6 @@ import "net/url"
 
 // CookieValue interface to manage the sticky cookie value format.
 // It will be used by the load balancer to generate the sticky cookie value and to retrieve the matching url.
-// There is several implementations of this interface:
-//  - RawValue: that uses a no/op operation.
-//  - HashValue: that hashes the value using a fast hash algorithm.
-//  - AESValue: that ciphers the value using an AES algorithm.
 type CookieValue interface {
 	// Get converts raw value to an expected sticky format.
 	Get(*url.URL) string
