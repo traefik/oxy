@@ -21,7 +21,7 @@ type AESValue struct {
 	ttl   time.Duration
 }
 
-// NewAESValue takes a fixed-size key and returns an Manager or an error.
+// NewAESValue takes a fixed-size key and returns an CookieValue or an error.
 // Key size must be exactly one of 16, 24, or 32 bytes to select AES-128, AES-192, or AES-256.
 func NewAESValue(key []byte, ttl time.Duration) (*AESValue, error) {
 	block, err := aes.NewCipher(key)

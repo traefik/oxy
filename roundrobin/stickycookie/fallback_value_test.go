@@ -23,7 +23,7 @@ func TestFallbackValue_FindURL(t *testing.T) {
 	aesValue, err := NewAESValue([]byte("95Bx9JkKX3xbd7z3"), 5*time.Second)
 	require.NoError(t, err)
 
-	managers := []struct {
+	values := []struct {
 		Name        string
 		CookieValue CookieValue
 	}{
@@ -33,9 +33,9 @@ func TestFallbackValue_FindURL(t *testing.T) {
 		{Name: "nil"},
 	}
 
-	for _, from := range managers {
+	for _, from := range values {
 		from := from
-		for _, to := range managers {
+		for _, to := range values {
 			to := to
 			t.Run(fmt.Sprintf("From: %s, To %s", from.Name, to.Name), func(t *testing.T) {
 				t.Parallel()
@@ -73,7 +73,7 @@ func TestFallbackValue_FindURL(t *testing.T) {
 	}
 }
 
-func TestFallbackValue_FindURL_again(t *testing.T) {
+func TestFallbackValue_FindURL_error(t *testing.T) {
 	servers := []*url.URL{
 		{Scheme: "http", Host: "10.10.10.10", Path: "/"},
 		{Scheme: "https", Host: "10.10.10.42", Path: "/"},
@@ -196,14 +196,14 @@ func TestFallbackValue_FindURL_again(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager, err := NewFallbackValue(tt.From, tt.To)
+			value, err := NewFallbackValue(tt.From, tt.To)
 			if tt.expectErrorOnNew {
 				assert.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
 
-			findURL, err := manager.FindURL(tt.rawValue, servers)
+			findURL, err := value.FindURL(tt.rawValue, servers)
 			if tt.expectError {
 				assert.Error(t, err)
 				return

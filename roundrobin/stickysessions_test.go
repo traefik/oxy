@@ -58,7 +58,7 @@ func TestBasic(t *testing.T) {
 	}
 }
 
-func TestBasicWithHashManager(t *testing.T) {
+func TestBasicWithHashValue(t *testing.T) {
 	a := testutils.NewResponder("a")
 	b := testutils.NewResponder("b")
 
@@ -112,7 +112,7 @@ func TestBasicWithHashManager(t *testing.T) {
 	}
 }
 
-func TestBasicWithAESManager(t *testing.T) {
+func TestBasicWithAESValue(t *testing.T) {
 	a := testutils.NewResponder("a")
 	b := testutils.NewResponder("b")
 
@@ -125,10 +125,10 @@ func TestBasicWithAESManager(t *testing.T) {
 	sticky := NewStickySession("test")
 	require.NotNil(t, sticky)
 
-	aesManager, err := stickycookie.NewAESValue([]byte("95Bx9JkKX3xbd7z3"), 5*time.Second)
+	aesValue, err := stickycookie.NewAESValue([]byte("95Bx9JkKX3xbd7z3"), 5*time.Second)
 	require.NoError(t, err)
 
-	sticky.SetCookieValue(aesManager)
+	sticky.SetCookieValue(aesValue)
 	require.NotNil(t, sticky.cookieValue)
 
 	lb, err := New(fwd, EnableStickySession(sticky))
@@ -544,11 +544,11 @@ func TestStickySession_GetBackend(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
-		name          string
-		CookieManager stickycookie.CookieValue
-		cookie        *http.Cookie
-		want          *url.URL
-		expectError   bool
+		name        string
+		CookieValue stickycookie.CookieValue
+		cookie      *http.Cookie
+		want        *url.URL
+		expectError bool
 	}{
 		{
 			name: "NoCookies",
@@ -590,73 +590,73 @@ func TestStickySession_GetBackend(t *testing.T) {
 			want:   servers[3],
 		},
 		{
-			name:          "Cookie no matched with RawValue",
-			CookieManager: rawValue,
-			cookie:        &http.Cookie{Name: "not" + cookieName, Value: rawValue.Get(mustParse(t, "http://10.10.10.10/"))},
+			name:        "Cookie no matched with RawValue",
+			CookieValue: rawValue,
+			cookie:      &http.Cookie{Name: "not" + cookieName, Value: rawValue.Get(mustParse(t, "http://10.10.10.10/"))},
 		},
 		{
-			name:          "Cookie no matched with HashValue",
-			CookieManager: hashValue,
-			cookie:        &http.Cookie{Name: "not" + cookieName, Value: hashValue.Get(mustParse(t, "http://10.10.10.10/"))},
+			name:        "Cookie no matched with HashValue",
+			CookieValue: hashValue,
+			cookie:      &http.Cookie{Name: "not" + cookieName, Value: hashValue.Get(mustParse(t, "http://10.10.10.10/"))},
 		},
 		{
-			name:          "Cookie value not matched with HashValue",
-			CookieManager: hashValue,
-			cookie:        &http.Cookie{Name: cookieName, Value: hashValue.Get(mustParse(t, "http://10.10.10.255/"))},
+			name:        "Cookie value not matched with HashValue",
+			CookieValue: hashValue,
+			cookie:      &http.Cookie{Name: cookieName, Value: hashValue.Get(mustParse(t, "http://10.10.10.255/"))},
 		},
 		{
-			name:          "simple with HashValue",
-			CookieManager: hashValue,
-			cookie:        &http.Cookie{Name: cookieName, Value: hashValue.Get(mustParse(t, "http://10.10.10.10/"))},
-			want:          servers[0],
+			name:        "simple with HashValue",
+			CookieValue: hashValue,
+			cookie:      &http.Cookie{Name: cookieName, Value: hashValue.Get(mustParse(t, "http://10.10.10.10/"))},
+			want:        servers[0],
 		},
 		{
-			name:          "simple with HashValue and salt",
-			CookieManager: saltyHashValue,
-			cookie:        &http.Cookie{Name: cookieName, Value: saltyHashValue.Get(mustParse(t, "http://10.10.10.10/"))},
-			want:          servers[0],
+			name:        "simple with HashValue and salt",
+			CookieValue: saltyHashValue,
+			cookie:      &http.Cookie{Name: cookieName, Value: saltyHashValue.Get(mustParse(t, "http://10.10.10.10/"))},
+			want:        servers[0],
 		},
 		{
-			name:          "Cookie value not matched with AESValue",
-			CookieManager: aesValue,
-			cookie:        &http.Cookie{Name: cookieName, Value: aesValue.Get(mustParse(t, "http://10.10.10.255/"))},
+			name:        "Cookie value not matched with AESValue",
+			CookieValue: aesValue,
+			cookie:      &http.Cookie{Name: cookieName, Value: aesValue.Get(mustParse(t, "http://10.10.10.255/"))},
 		},
 		{
-			name:          "simple with AESValue",
-			CookieManager: aesValue,
-			cookie:        &http.Cookie{Name: cookieName, Value: aesValue.Get(mustParse(t, "http://10.10.10.10/"))},
-			want:          servers[0],
+			name:        "simple with AESValue",
+			CookieValue: aesValue,
+			cookie:      &http.Cookie{Name: cookieName, Value: aesValue.Get(mustParse(t, "http://10.10.10.10/"))},
+			want:        servers[0],
 		},
 		{
-			name:          "Cookie value not matched with AESValue with ttl 0s",
-			CookieManager: aesValueInfinite,
-			cookie:        &http.Cookie{Name: cookieName, Value: aesValueInfinite.Get(mustParse(t, "http://10.10.10.255/"))},
+			name:        "Cookie value not matched with AESValue with ttl 0s",
+			CookieValue: aesValueInfinite,
+			cookie:      &http.Cookie{Name: cookieName, Value: aesValueInfinite.Get(mustParse(t, "http://10.10.10.255/"))},
 		},
 		{
-			name:          "simple with AESValue with ttl 0s",
-			CookieManager: aesValueInfinite,
-			cookie:        &http.Cookie{Name: cookieName, Value: aesValueInfinite.Get(mustParse(t, "http://10.10.10.10/"))},
-			want:          servers[0],
+			name:        "simple with AESValue with ttl 0s",
+			CookieValue: aesValueInfinite,
+			cookie:      &http.Cookie{Name: cookieName, Value: aesValueInfinite.Get(mustParse(t, "http://10.10.10.10/"))},
+			want:        servers[0],
 		},
 		{
-			name:          "simple with AESValue with ttl 0s",
-			CookieManager: aesValueInfinite,
-			cookie:        &http.Cookie{Name: cookieName, Value: aesValueInfinite.Get(mustParse(t, "http://10.10.10.10/"))},
-			want:          servers[0],
+			name:        "simple with AESValue with ttl 0s",
+			CookieValue: aesValueInfinite,
+			cookie:      &http.Cookie{Name: cookieName, Value: aesValueInfinite.Get(mustParse(t, "http://10.10.10.10/"))},
+			want:        servers[0],
 		},
 		{
-			name:          "simple with AESValue with expired ttl",
-			CookieManager: aesValueExpired,
-			cookie:        &http.Cookie{Name: cookieName, Value: aesValueExpired.Get(mustParse(t, "http://10.10.10.10/"))},
-			expectError:   true,
+			name:        "simple with AESValue with expired ttl",
+			CookieValue: aesValueExpired,
+			cookie:      &http.Cookie{Name: cookieName, Value: aesValueExpired.Get(mustParse(t, "http://10.10.10.10/"))},
+			expectError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := NewStickySession(cookieName)
-			if tt.CookieManager != nil {
-				s.SetCookieValue(tt.CookieManager)
+			if tt.CookieValue != nil {
+				s.SetCookieValue(tt.CookieValue)
 			}
 
 			req := httptest.NewRequest(http.MethodGet, "http://foo", nil)
