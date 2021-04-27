@@ -23,26 +23,25 @@ type CookieOptions struct {
 
 // StickySession is a mixin for load balancers that implements layer 7 (http cookie) session affinity
 type StickySession struct {
-	cookieName string
-	options    CookieOptions
-
-	cookieManager stickycookie.CookieValue
+	cookieName  string
+	cookieValue stickycookie.CookieValue
+	options     CookieOptions
 }
 
 // NewStickySession creates a new StickySession
 func NewStickySession(cookieName string) *StickySession {
-	return &StickySession{cookieName: cookieName, cookieManager: &stickycookie.RawValue{}}
+	return &StickySession{cookieName: cookieName, cookieValue: &stickycookie.RawValue{}}
 }
 
 // NewStickySessionWithOptions creates a new StickySession whilst allowing for options to
 // shape its affinity cookie such as "httpOnly" or "secure"
 func NewStickySessionWithOptions(cookieName string, options CookieOptions) *StickySession {
-	return &StickySession{cookieName: cookieName, options: options, cookieManager: &stickycookie.RawValue{}}
+	return &StickySession{cookieName: cookieName, options: options, cookieValue: &stickycookie.RawValue{}}
 }
 
-// SetCookieManager set the cookieManager for the StickySession
-func (s *StickySession) SetCookieManager(manager stickycookie.CookieValue) *StickySession {
-	s.cookieManager = manager
+// SetCookieValue set the CookieValue for the StickySession.
+func (s *StickySession) SetCookieValue(value stickycookie.CookieValue) *StickySession {
+	s.cookieValue = value
 	return s
 }
 
@@ -57,7 +56,7 @@ func (s *StickySession) GetBackend(req *http.Request, servers []*url.URL) (*url.
 		return nil, false, err
 	}
 
-	server, err := s.cookieManager.FindURL(cookie.Value, servers)
+	server, err := s.cookieValue.FindURL(cookie.Value, servers)
 
 	return server, server != nil, err
 }
@@ -73,7 +72,7 @@ func (s *StickySession) StickBackend(backend *url.URL, w *http.ResponseWriter) {
 
 	cookie := &http.Cookie{
 		Name:     s.cookieName,
-		Value:    s.cookieManager.ToValue(backend.String()),
+		Value:    s.cookieValue.Get(backend),
 		Path:     cp,
 		Domain:   opt.Domain,
 		Expires:  opt.Expires,

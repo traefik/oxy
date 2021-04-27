@@ -17,9 +17,9 @@ func (v *HashValue) hash(input string) string {
 	return fmt.Sprintf("%x", fnv1a.HashString64(v.Salt+input))
 }
 
-// ToValue hashes the sticky value.
-func (v *HashValue) ToValue(raw string) string {
-	return v.hash(raw)
+// Get hashes the sticky value.
+func (v *HashValue) Get(raw *url.URL) string {
+	return v.hash(raw.String())
 }
 
 func normalized(u *url.URL) string {

@@ -21,9 +21,9 @@ type AESValue struct {
 	ttl   time.Duration
 }
 
-// NewAESManager takes a fixed-size key and returns an Manager or an error.
+// NewAESValue takes a fixed-size key and returns an Manager or an error.
 // Key size must be exactly one of 16, 24, or 32 bytes to select AES-128, AES-192, or AES-256.
-func NewAESManager(key []byte, ttl time.Duration) (*AESValue, error) {
+func NewAESValue(key []byte, ttl time.Duration) (*AESValue, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -37,10 +37,11 @@ func NewAESManager(key []byte, ttl time.Duration) (*AESValue, error) {
 	return &AESValue{block: gcm, ttl: ttl}, nil
 }
 
-// ToValue hashes the sticky value.
-func (v *AESValue) ToValue(raw string) string {
+// Get hashes the sticky value.
+func (v *AESValue) Get(raw *url.URL) string {
+	base := raw.String()
 	if v.ttl > 0 {
-		raw = fmt.Sprintf("%s|%d", raw, time.Now().UTC().Add(v.ttl).Unix())
+		base = fmt.Sprintf("%s|%d", base, time.Now().UTC().Add(v.ttl).Unix())
 	}
 
 	// Nonce is the 64bit nanosecond-resolution time, plus 32bits of crypto/rand, for 96bits (12Bytes).
@@ -63,7 +64,7 @@ func (v *AESValue) ToValue(raw string) string {
 		nonce[i+8] = rpend[i]
 	}
 
-	obfuscated := v.block.Seal(nil, nonce, []byte(raw), nil)
+	obfuscated := v.block.Seal(nil, nonce, []byte(base), nil)
 	// We append the 12byte nonce onto the end of the message
 	obfuscated = append(obfuscated, nonce...)
 	obfuscatedStr := base64.RawURLEncoding.EncodeToString(obfuscated)

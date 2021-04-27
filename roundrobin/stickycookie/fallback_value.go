@@ -11,8 +11,8 @@ type FallbackValue struct {
 	To   CookieValue
 }
 
-// NewMigrationManager creates a new FallbackValue
-func NewMigrationManager(from CookieValue, to CookieValue) (CookieValue, error) {
+// NewFallbackValue creates a new FallbackValue
+func NewFallbackValue(from CookieValue, to CookieValue) (CookieValue, error) {
 	if from == nil && to == nil {
 		return nil, errors.New("no CookieValue defined")
 	}
@@ -28,9 +28,9 @@ func NewMigrationManager(from CookieValue, to CookieValue) (CookieValue, error) 
 	return &FallbackValue{From: from, To: to}, nil
 }
 
-// ToValue hashes the sticky value.
-func (v *FallbackValue) ToValue(raw string) string {
-	return v.To.ToValue(raw)
+// Get hashes the sticky value.
+func (v *FallbackValue) Get(raw *url.URL) string {
+	return v.To.Get(raw)
 }
 
 // FindURL get url from array that match the value.

@@ -3,6 +3,7 @@ package stickycookie
 import (
 	"fmt"
 	"net/url"
+	"path"
 	"testing"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestName(t *testing.T) {
+func TestFallbackValue_FindURL(t *testing.T) {
 	servers := []*url.URL{
 		{Scheme: "https", Host: "10.10.10.42", Path: "/"},
 		{Scheme: "http", Host: "10.10.10.10", Path: "/foo"},
@@ -19,54 +20,52 @@ func TestName(t *testing.T) {
 		{Scheme: "http", Host: "10.10.10.10", Path: "/"},
 	}
 
-	hashManager := &HashValue{Salt: "foo"}
-	defaultManager := &RawValue{}
-	aesManager, err := NewAESManager([]byte("95Bx9JkKX3xbd7z3"), 5*time.Second)
+	aesValue, err := NewAESValue([]byte("95Bx9JkKX3xbd7z3"), 5*time.Second)
 	require.NoError(t, err)
 
 	managers := []struct {
-		Name          string
-		CookieManager CookieValue
+		Name        string
+		CookieValue CookieValue
 	}{
-		{"defaultManager", defaultManager},
-		{"hashManager", hashManager},
-		{"aesManager", aesManager},
-		{"nil", nil},
+		{Name: "rawValue", CookieValue: &RawValue{}},
+		{Name: "hashValue", CookieValue: &HashValue{Salt: "foo"}},
+		{Name: "aesValue", CookieValue: aesValue},
+		{Name: "nil"},
 	}
 
-	for i := 0; i < len(managers); i++ {
-		for j := 0; j < len(managers); j++ {
-			from := managers[i]
-			to := managers[j]
-
+	for _, from := range managers {
+		from := from
+		for _, to := range managers {
+			to := to
 			t.Run(fmt.Sprintf("From: %s, To %s", from.Name, to.Name), func(t *testing.T) {
+				t.Parallel()
 
-				manager, err := NewMigrationManager(from.CookieManager, to.CookieManager)
-				if from.CookieManager == nil && to.CookieManager == nil {
+				value, err := NewFallbackValue(from.CookieValue, to.CookieValue)
+				if from.CookieValue == nil && to.CookieValue == nil {
 					assert.Error(t, err)
 					return
 				}
 				require.NoError(t, err)
 
-				if from.CookieManager != nil {
+				if from.CookieValue != nil {
 					// URL found From value
-					findURL, err := manager.FindURL(from.CookieManager.ToValue(servers[0].String()), servers)
+					findURL, err := value.FindURL(from.CookieValue.Get(servers[0]), servers)
 					require.NoError(t, err)
 					assert.Equal(t, servers[0], findURL)
 
 					// URL not found From value
-					findURL, _ = manager.FindURL(from.CookieManager.ToValue(servers[0].String()+"bar"), servers)
+					findURL, _ = value.FindURL(from.CookieValue.Get(mustJoin(t, servers[0], "bar")), servers)
 					assert.Nil(t, findURL)
 				}
 
-				if to.CookieManager != nil {
+				if to.CookieValue != nil {
 					// URL found To Value
-					findURL, err := manager.FindURL(to.CookieManager.ToValue(servers[0].String()), servers)
+					findURL, err := value.FindURL(to.CookieValue.Get(servers[0]), servers)
 					require.NoError(t, err)
 					assert.Equal(t, servers[0], findURL)
 
 					// URL not found To value
-					findURL, _ = manager.FindURL(to.CookieManager.ToValue(servers[0].String()+"bar"), servers)
+					findURL, _ = value.FindURL(to.CookieValue.Get(mustJoin(t, servers[0], "bar")), servers)
 					assert.Nil(t, findURL)
 				}
 			})
@@ -74,8 +73,7 @@ func TestName(t *testing.T) {
 	}
 }
 
-func TestManager(t *testing.T) {
-
+func TestFallbackValue_FindURL_again(t *testing.T) {
 	servers := []*url.URL{
 		{Scheme: "http", Host: "10.10.10.10", Path: "/"},
 		{Scheme: "https", Host: "10.10.10.42", Path: "/"},
@@ -83,9 +81,9 @@ func TestManager(t *testing.T) {
 		{Scheme: "http", Host: "10.10.10.11", Path: "/", User: url.User("John Doe")},
 	}
 
-	hashManager := &HashValue{Salt: "foo"}
-	defaultManager := &RawValue{}
-	aesManager, err := NewAESManager([]byte("95Bx9JkKX3xbd7z3"), 5*time.Second)
+	hashValue := &HashValue{Salt: "foo"}
+	rawValue := &RawValue{}
+	aesValue, err := NewAESValue([]byte("95Bx9JkKX3xbd7z3"), 5*time.Second)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -99,90 +97,90 @@ func TestManager(t *testing.T) {
 	}{
 		{
 			name:     "From RawValue To HashValue with RawValue value",
-			From:     defaultManager,
-			To:       hashManager,
+			From:     rawValue,
+			To:       hashValue,
 			rawValue: "http://10.10.10.10/",
 			want:     servers[0],
 		},
 		{
 			name:     "From RawValue To HashValue with RawValue non matching value",
-			From:     defaultManager,
-			To:       hashManager,
+			From:     rawValue,
+			To:       hashValue,
 			rawValue: "http://24.10.10.10/",
 		},
 		{
 			name:     "From RawValue To HashValue with HashValue value",
-			From:     defaultManager,
-			To:       hashManager,
-			rawValue: hashManager.ToValue("http://10.10.10.10/"),
+			From:     rawValue,
+			To:       hashValue,
+			rawValue: hashValue.Get(mustParse(t, "http://10.10.10.10/")),
 			want:     servers[0],
 		},
 		{
 			name:     "From RawValue To HashValue with HashValue non matching value",
-			From:     defaultManager,
-			To:       hashManager,
-			rawValue: hashManager.ToValue("http://24.10.10.10/"),
+			From:     rawValue,
+			To:       hashValue,
+			rawValue: hashValue.Get(mustParse(t, "http://24.10.10.10/")),
 		},
 		{
 			name:     "From HashValue To AESValue with AESValue value",
-			From:     hashManager,
-			To:       aesManager,
-			rawValue: aesManager.ToValue("http://10.10.10.10/"),
+			From:     hashValue,
+			To:       aesValue,
+			rawValue: aesValue.Get(mustParse(t, "http://10.10.10.10/")),
 			want:     servers[0],
 		},
 		{
 			name:     "From HashValue To AESValue with AESValue non matching value",
-			From:     hashManager,
-			To:       aesManager,
-			rawValue: aesManager.ToValue("http://24.10.10.10/"),
+			From:     hashValue,
+			To:       aesValue,
+			rawValue: aesValue.Get(mustParse(t, "http://24.10.10.10/")),
 		},
 		{
 			name:     "From HashValue To AESValue with HashValue value",
-			From:     hashManager,
-			To:       aesManager,
-			rawValue: hashManager.ToValue("http://10.10.10.10/"),
+			From:     hashValue,
+			To:       aesValue,
+			rawValue: hashValue.Get(mustParse(t, "http://10.10.10.10/")),
 			want:     servers[0],
 		},
 		{
 			name:     "From HashValue To AESValue with AESValue non matching value",
-			From:     hashManager,
-			To:       aesManager,
-			rawValue: aesManager.ToValue("http://24.10.10.10/"),
+			From:     hashValue,
+			To:       aesValue,
+			rawValue: aesValue.Get(mustParse(t, "http://24.10.10.10/")),
 		},
 		{
 			name:     "From AESValue To AESValue with AESValue value",
-			From:     aesManager,
-			To:       aesManager,
-			rawValue: aesManager.ToValue("http://10.10.10.10/"),
+			From:     aesValue,
+			To:       aesValue,
+			rawValue: aesValue.Get(mustParse(t, "http://10.10.10.10/")),
 			want:     servers[0],
 		},
 		{
 			name:     "From AESValue To AESValue with AESValue non matching value",
-			From:     aesManager,
-			To:       aesManager,
-			rawValue: aesManager.ToValue("http://24.10.10.10/"),
+			From:     aesValue,
+			To:       aesValue,
+			rawValue: aesValue.Get(mustParse(t, "http://24.10.10.10/")),
 		},
 		{
 			name:     "From nil To AESValue with AESValue with matching value",
-			To:       aesManager,
-			rawValue: aesManager.ToValue("http://10.10.10.10/"),
+			To:       aesValue,
+			rawValue: aesValue.Get(mustParse(t, "http://10.10.10.10/")),
 			want:     servers[0],
 		},
 		{
 			name:     "From HashValue To nil with HashValue with matching value",
-			From:     hashManager,
-			rawValue: hashManager.ToValue("http://10.10.10.10/"),
+			From:     hashValue,
+			rawValue: hashValue.Get(mustParse(t, "http://10.10.10.10/")),
 			want:     servers[0],
 		},
 		{
 			name:     "From nil To AESValue with AESValue non matching value",
-			To:       aesManager,
-			rawValue: aesManager.ToValue("http://24.10.10.10/"),
+			To:       aesValue,
+			rawValue: aesValue.Get(mustParse(t, "http://24.10.10.10/")),
 		},
 		{
 			name:     "From HashValue To nil with HashValue non matching value",
-			From:     hashManager,
-			rawValue: hashManager.ToValue("http://24.10.10.10/"),
+			From:     hashValue,
+			rawValue: hashValue.Get(mustParse(t, "http://24.10.10.10/")),
 		},
 		{
 			name:             "From nil To nil",
@@ -190,15 +188,15 @@ func TestManager(t *testing.T) {
 		},
 		{
 			name:     "From AESValue To HashValue with HashValue non matching value",
-			From:     aesManager,
-			To:       hashManager,
-			rawValue: hashManager.ToValue("http://24.10.10.10/"),
+			From:     aesValue,
+			To:       hashValue,
+			rawValue: hashValue.Get(mustParse(t, "http://24.10.10.10/")),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager, err := NewMigrationManager(tt.From, tt.To)
+			manager, err := NewFallbackValue(tt.From, tt.To)
 			if tt.expectErrorOnNew {
 				assert.Error(t, err)
 				return
@@ -215,4 +213,22 @@ func TestManager(t *testing.T) {
 			assert.Equal(t, tt.want, findURL)
 		})
 	}
+}
+
+func mustJoin(t *testing.T, u *url.URL, part string) *url.URL {
+	t.Helper()
+
+	nu, err := u.Parse(path.Join(u.Path, part))
+	require.NoError(t, err)
+
+	return nu
+}
+
+func mustParse(t *testing.T, raw string) *url.URL {
+	t.Helper()
+
+	u, err := url.Parse(raw)
+	require.NoError(t, err)
+
+	return u
 }

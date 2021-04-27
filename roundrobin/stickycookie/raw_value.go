@@ -7,9 +7,9 @@ import (
 // RawValue is a no-op that returns the raw strings as-is.
 type RawValue struct{}
 
-// ToValue return the raw value.
-func (v *RawValue) ToValue(raw string) string {
-	return raw
+// Get return the raw value.
+func (v *RawValue) Get(raw *url.URL) string {
+	return raw.String()
 }
 
 // FindURL get url from array that match the value.
