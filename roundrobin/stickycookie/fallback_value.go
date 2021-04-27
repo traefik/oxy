@@ -13,16 +13,8 @@ type FallbackValue struct {
 
 // NewFallbackValue creates a new FallbackValue
 func NewFallbackValue(from CookieValue, to CookieValue) (CookieValue, error) {
-	if from == nil && to == nil {
-		return nil, errors.New("no CookieValue defined")
-	}
-
-	if from == nil {
-		return to, nil
-	}
-
-	if to == nil {
-		return from, nil
+	if from == nil || to == nil {
+		return nil, errors.New("from and to are mandatory")
 	}
 
 	return &FallbackValue{from: from, to: to}, nil

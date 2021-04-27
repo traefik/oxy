@@ -30,7 +30,6 @@ func TestFallbackValue_FindURL(t *testing.T) {
 		{Name: "rawValue", CookieValue: &RawValue{}},
 		{Name: "hashValue", CookieValue: &HashValue{Salt: "foo"}},
 		{Name: "aesValue", CookieValue: aesValue},
-		{Name: "nil"},
 	}
 
 	for _, from := range values {
@@ -161,36 +160,22 @@ func TestFallbackValue_FindURL_error(t *testing.T) {
 			rawValue: aesValue.Get(mustParse(t, "http://24.10.10.10/")),
 		},
 		{
-			name:     "From nil To AESValue with AESValue with matching value",
-			To:       aesValue,
-			rawValue: aesValue.Get(mustParse(t, "http://10.10.10.10/")),
-			want:     servers[0],
-		},
-		{
-			name:     "From HashValue To nil with HashValue with matching value",
-			From:     hashValue,
-			rawValue: hashValue.Get(mustParse(t, "http://10.10.10.10/")),
-			want:     servers[0],
-		},
-		{
-			name:     "From nil To AESValue with AESValue non matching value",
-			To:       aesValue,
-			rawValue: aesValue.Get(mustParse(t, "http://24.10.10.10/")),
-		},
-		{
-			name:     "From HashValue To nil with HashValue non matching value",
-			From:     hashValue,
-			rawValue: hashValue.Get(mustParse(t, "http://24.10.10.10/")),
-		},
-		{
-			name:             "From nil To nil",
-			expectErrorOnNew: true,
-		},
-		{
 			name:     "From AESValue To HashValue with HashValue non matching value",
 			From:     aesValue,
 			To:       hashValue,
 			rawValue: hashValue.Get(mustParse(t, "http://24.10.10.10/")),
+		},
+		{
+			name:             "From nil To RawValue",
+			To:               hashValue,
+			rawValue:         "http://24.10.10.10/",
+			expectErrorOnNew: true,
+		},
+		{
+			name:             "From RawValue To nil",
+			From:             rawValue,
+			rawValue:         "http://24.10.10.10/",
+			expectErrorOnNew: true,
 		},
 	}
 
