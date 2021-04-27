@@ -9,10 +9,10 @@ import "net/url"
 //  - HashValue: that hashes the value using a fast hash algorithm.
 //  - AESValue: that ciphers the value using an AES algorithm.
 type CookieValue interface {
-	// Get convert raw value to an expected sticky format.
+	// Get converts raw value to an expected sticky format.
 	Get(*url.URL) string
 
-	// FindURL get url from array that match the value.
+	// FindURL gets url from array that match the value.
 	FindURL(string, []*url.URL) (*url.URL, error)
 }
 

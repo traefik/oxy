@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// AESValue manage hashed sticky value.
+// AESValue manages hashed sticky value.
 type AESValue struct {
 	block cipher.AEAD
 	ttl   time.Duration
@@ -72,6 +72,27 @@ func (v *AESValue) Get(raw *url.URL) string {
 	return obfuscatedStr
 }
 
+// FindURL gets url from array that match the value.
+func (v *AESValue) FindURL(raw string, urls []*url.URL) (*url.URL, error) {
+	rawURL, err := v.fromValue(raw)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, u := range urls {
+		ok, err := areURLEqual(rawURL, u)
+		if err != nil {
+			return nil, err
+		}
+
+		if ok {
+			return u, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func (v *AESValue) fromValue(obfuscatedStr string) (string, error) {
 	obfuscated, err := base64.RawURLEncoding.DecodeString(obfuscatedStr)
 	if err != nil {
@@ -114,25 +135,4 @@ func (v *AESValue) fromValue(obfuscatedStr string) (string, error) {
 	}
 
 	return string(raw), nil
-}
-
-// FindURL get url from array that match the value.
-func (v *AESValue) FindURL(raw string, urls []*url.URL) (*url.URL, error) {
-	rawURL, err := v.fromValue(raw)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, u := range urls {
-		ok, err := areURLEqual(rawURL, u)
-		if err != nil {
-			return nil, err
-		}
-
-		if ok {
-			return u, nil
-		}
-	}
-
-	return nil, nil
 }

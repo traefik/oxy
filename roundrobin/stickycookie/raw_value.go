@@ -7,12 +7,12 @@ import (
 // RawValue is a no-op that returns the raw strings as-is.
 type RawValue struct{}
 
-// Get return the raw value.
+// Get returns the raw value.
 func (v *RawValue) Get(raw *url.URL) string {
 	return raw.String()
 }
 
-// FindURL get url from array that match the value.
+// FindURL gets url from array that match the value.
 func (v *RawValue) FindURL(raw string, urls []*url.URL) (*url.URL, error) {
 	for _, u := range urls {
 		ok, err := areURLEqual(raw, u)

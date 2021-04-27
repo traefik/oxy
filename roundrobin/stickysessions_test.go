@@ -666,12 +666,12 @@ func TestStickySession_GetBackend(t *testing.T) {
 
 			got, _, err := s.GetBackend(req, servers)
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
 			require.NoError(t, err)
-			require.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
