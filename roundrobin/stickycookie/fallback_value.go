@@ -7,8 +7,8 @@ import (
 
 // FallbackValue manages hashed sticky value.
 type FallbackValue struct {
-	From CookieValue
-	To   CookieValue
+	from CookieValue
+	to   CookieValue
 }
 
 // NewFallbackValue creates a new FallbackValue
@@ -25,21 +25,21 @@ func NewFallbackValue(from CookieValue, to CookieValue) (CookieValue, error) {
 		return from, nil
 	}
 
-	return &FallbackValue{From: from, To: to}, nil
+	return &FallbackValue{from: from, to: to}, nil
 }
 
 // Get hashes the sticky value.
 func (v *FallbackValue) Get(raw *url.URL) string {
-	return v.To.Get(raw)
+	return v.to.Get(raw)
 }
 
 // FindURL gets url from array that match the value.
 // If it is a symmetric algorithm, it decodes the URL, otherwise it compares the ciphered values.
 func (v *FallbackValue) FindURL(raw string, urls []*url.URL) (*url.URL, error) {
-	findURL, err := v.From.FindURL(raw, urls)
+	findURL, err := v.from.FindURL(raw, urls)
 	if findURL != nil {
 		return findURL, err
 	}
 
-	return v.To.FindURL(raw, urls)
+	return v.to.FindURL(raw, urls)
 }
