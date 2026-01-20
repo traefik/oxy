@@ -132,7 +132,9 @@ func (b *Buffer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	var body multibuf.MultiReader
+
 	var totalSize int64
+
 	outReq := req
 
 	if !b.disableRequest {
@@ -141,6 +143,7 @@ func (b *Buffer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		// predefined MaxSizeBytes. This can occur if we got chunked request, in this case ContentLength would be set to -1
 		// and the reader would be unbounded bufio in the http.Server
 		var err error
+
 		body, err = multibuf.New(req.Body, multibuf.MaxBytes(b.maxRequestBodyBytes), multibuf.MemBytes(b.memRequestBodyBytes))
 		if err != nil || body == nil {
 			if req.Context().Err() != nil {

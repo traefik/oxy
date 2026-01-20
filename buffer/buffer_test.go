@@ -532,7 +532,9 @@ func TestBuffer_disableRequestBuffer(t *testing.T) {
 	// Send a chunked request - when buffering is disabled, it should remain chunked.
 	conn, err := net.Dial("tcp", testutils.MustParseRequestURI(proxy.URL).Host)
 	require.NoError(t, err)
-	defer conn.Close()
+	t.Cleanup(func() {
+		_ = conn.Close()
+	})
 
 	_, _ = fmt.Fprintf(conn, "POST / HTTP/1.1\r\nHost: %s\r\nTransfer-Encoding: chunked\r\n\r\n4\r\ntest\r\n0\r\n\r\n", testutils.MustParseRequestURI(proxy.URL).Host)
 	status, err := bufio.NewReader(conn).ReadString('\n')
@@ -565,10 +567,10 @@ func TestBuffer_disableResponseBuffer(t *testing.T) {
 	proxy := httptest.NewServer(st)
 	t.Cleanup(proxy.Close)
 
-	re, body, err := testutils.Get(proxy.URL)
+	resp, _, err := testutils.Get(proxy.URL)
 	require.NoError(t, err)
 	// Response should not pass through as it exceeds the limit.
-	assert.Equal(t, http.StatusInternalServerError, re.StatusCode)
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 
 	// buffer with disabled response buffering and a small max response size.
 	st, err = New(rdr, DisableResponseBuffer(), MaxResponseBodyBytes(4))
@@ -577,9 +579,9 @@ func TestBuffer_disableResponseBuffer(t *testing.T) {
 	proxy2 := httptest.NewServer(st)
 	t.Cleanup(proxy2.Close)
 
-	re, body, err = testutils.Get(proxy2.URL)
+	resp2, body, err := testutils.Get(proxy2.URL)
 	require.NoError(t, err)
 	// Response should pass through even though it exceeds the limit, because buffering has been disabled.
-	assert.Equal(t, http.StatusOK, re.StatusCode)
+	assert.Equal(t, http.StatusOK, resp2.StatusCode)
 	assert.Equal(t, largeResponseBody, string(body))
 }
