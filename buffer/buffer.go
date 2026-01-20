@@ -124,13 +124,6 @@ func (b *Buffer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		defer b.log.Debug("vulcand/oxy/buffer: completed ServeHttp on request: %s", dump)
 	}
 
-	if err := b.checkLimit(req); err != nil {
-		b.log.Error("vulcand/oxy/buffer: request body over limit, err: %v", err)
-		b.errHandler.ServeHTTP(w, req, err)
-
-		return
-	}
-
 	var body multibuf.MultiReader
 
 	var totalSize int64
@@ -138,6 +131,13 @@ func (b *Buffer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	outReq := req
 
 	if !b.disableRequest {
+		if err := b.checkLimit(req); err != nil {
+			b.log.Error("vulcand/oxy/buffer: request body over limit, err: %v", err)
+			b.errHandler.ServeHTTP(w, req, err)
+
+			return
+		}
+
 		// Read the body while keeping limits in mind. This reader controls the maximum bytes
 		// to read into memory and disk. This reader returns an error if the total request size exceeds the
 		// predefined MaxSizeBytes. This can occur if we got chunked request, in this case ContentLength would be set to -1
