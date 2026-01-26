@@ -496,3 +496,92 @@ func TestBuffer_GRPC_OKResponse(t *testing.T) {
 	assert.Equal(t, http.StatusOK, re.StatusCode)
 	assert.Equal(t, "grpc-body", string(body))
 }
+
+func TestBuffer_disableRequestBuffer(t *testing.T) {
+	var (
+		reqBody          string
+		contentLength    int64
+		actuallyBuffered bool
+	)
+
+	srv := testutils.NewHandler(func(w http.ResponseWriter, req *http.Request) {
+		body, err := io.ReadAll(req.Body)
+		require.NoError(t, err)
+
+		reqBody = string(body)
+		contentLength = req.ContentLength
+		// When buffering is disabled, chunked requests should preserve their transfer encoding, and have no content-length.
+		actuallyBuffered = contentLength > 0 || len(req.TransferEncoding) == 0
+		_, _ = w.Write([]byte("response"))
+	})
+	t.Cleanup(srv.Close)
+
+	fwd := forward.New(false)
+	rdr := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		req.URL = testutils.MustParseRequestURI(srv.URL)
+		fwd.ServeHTTP(w, req)
+	})
+
+	// buffer with disabled request buffering.
+	st, err := New(rdr, DisableRequestBuffer())
+	require.NoError(t, err)
+
+	proxy := httptest.NewServer(st)
+	t.Cleanup(proxy.Close)
+
+	// Send a chunked request - when buffering is disabled, it should remain chunked.
+	conn, err := net.Dial("tcp", testutils.MustParseRequestURI(proxy.URL).Host)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = conn.Close()
+	})
+
+	_, _ = fmt.Fprintf(conn, "POST / HTTP/1.1\r\nHost: %s\r\nTransfer-Encoding: chunked\r\n\r\n4\r\ntest\r\n0\r\n\r\n", testutils.MustParseRequestURI(proxy.URL).Host)
+	status, err := bufio.NewReader(conn).ReadString('\n')
+	require.NoError(t, err)
+
+	assert.Equal(t, "HTTP/1.1 200 OK\r\n", status)
+	assert.Equal(t, "test", reqBody)
+	// When buffering is disabled, chunked encoding should be preserved (not converted to Content-Length).
+	assert.False(t, actuallyBuffered, "Request should not have been buffered")
+	assert.Equal(t, int64(-1), contentLength, "Content-Length should be -1 for chunked requests when not buffered")
+}
+
+func TestBuffer_disableResponseBuffer(t *testing.T) {
+	largeResponseBody := strings.Repeat("A", 1000)
+	srv := testutils.NewHandler(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(largeResponseBody))
+	})
+	t.Cleanup(srv.Close)
+
+	fwd := forward.New(false)
+	rdr := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		req.URL = testutils.MustParseRequestURI(srv.URL)
+		fwd.ServeHTTP(w, req)
+	})
+
+	// buffer with a small max response size.
+	st, err := New(rdr, MaxResponseBodyBytes(4))
+	require.NoError(t, err)
+
+	proxy := httptest.NewServer(st)
+	t.Cleanup(proxy.Close)
+
+	resp, _, err := testutils.Get(proxy.URL)
+	require.NoError(t, err)
+	// Response should not pass through as it exceeds the limit.
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+
+	// buffer with disabled response buffering and a small max response size.
+	st, err = New(rdr, DisableResponseBuffer(), MaxResponseBodyBytes(4))
+	require.NoError(t, err)
+
+	proxy2 := httptest.NewServer(st)
+	t.Cleanup(proxy2.Close)
+
+	resp2, body, err := testutils.Get(proxy2.URL)
+	require.NoError(t, err)
+	// Response should pass through even though it exceeds the limit, because buffering has been disabled.
+	assert.Equal(t, http.StatusOK, resp2.StatusCode)
+	assert.Equal(t, largeResponseBody, string(body))
+}

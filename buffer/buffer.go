@@ -60,9 +60,11 @@ var errHandler utils.ErrorHandler = &SizeErrHandler{}
 // Buffer is responsible for buffering requests and responses
 // It buffers large requests and responses to disk,.
 type Buffer struct {
+	disableRequest      bool
 	maxRequestBodyBytes int64
 	memRequestBodyBytes int64
 
+	disableResponse      bool
 	maxResponseBodyBytes int64
 	memResponseBodyBytes int64
 
@@ -109,6 +111,12 @@ func (b *Buffer) Wrap(next http.Handler) error {
 }
 
 func (b *Buffer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if b.disableRequest && b.disableResponse {
+		b.next.ServeHTTP(w, req)
+
+		return
+	}
+
 	if b.verbose {
 		dump := utils.DumpHTTPRequest(req)
 
@@ -116,59 +124,74 @@ func (b *Buffer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		defer b.log.Debug("vulcand/oxy/buffer: completed ServeHttp on request: %s", dump)
 	}
 
-	if err := b.checkLimit(req); err != nil {
-		b.log.Error("vulcand/oxy/buffer: request body over limit, err: %v", err)
-		b.errHandler.ServeHTTP(w, req, err)
+	var body multibuf.MultiReader
 
-		return
-	}
+	var totalSize int64
 
-	// Read the body while keeping limits in mind. This reader controls the maximum bytes
-	// to read into memory and disk. This reader returns an error if the total request size exceeds the
-	// predefined MaxSizeBytes. This can occur if we got chunked request, in this case ContentLength would be set to -1
-	// and the reader would be unbounded bufio in the http.Server
-	body, err := multibuf.New(req.Body, multibuf.MaxBytes(b.maxRequestBodyBytes), multibuf.MemBytes(b.memRequestBodyBytes))
-	if err != nil || body == nil {
-		if req.Context().Err() != nil {
-			b.log.Error("vulcand/oxy/buffer: error when reading request body, err: %v", req.Context().Err())
-			b.errHandler.ServeHTTP(w, req, req.Context().Err())
+	outReq := req
+
+	if !b.disableRequest {
+		if err := b.checkLimit(req); err != nil {
+			b.log.Error("vulcand/oxy/buffer: request body over limit, err: %v", err)
+			b.errHandler.ServeHTTP(w, req, err)
 
 			return
 		}
 
-		b.log.Error("vulcand/oxy/buffer: error when reading request body, err: %v", err)
-		b.errHandler.ServeHTTP(w, req, err)
+		// Read the body while keeping limits in mind. This reader controls the maximum bytes
+		// to read into memory and disk. This reader returns an error if the total request size exceeds the
+		// predefined MaxSizeBytes. This can occur if we got chunked request, in this case ContentLength would be set to -1
+		// and the reader would be unbounded bufio in the http.Server
+		var err error
 
-		return
-	}
+		body, err = multibuf.New(req.Body, multibuf.MaxBytes(b.maxRequestBodyBytes), multibuf.MemBytes(b.memRequestBodyBytes))
+		if err != nil || body == nil {
+			if req.Context().Err() != nil {
+				b.log.Error("vulcand/oxy/buffer: error when reading request body, err: %v", req.Context().Err())
+				b.errHandler.ServeHTTP(w, req, req.Context().Err())
 
-	// Set request body to buffered reader that can replay the read and execute Seek
-	// Note that we don't change the original request body as it's handled by the http server
-	// and we don't want to mess with standard library
-	defer func() {
-		if body != nil {
-			errClose := body.Close()
-			if errClose != nil {
-				b.log.Error("vulcand/oxy/buffer: failed to close body, err: %v", errClose)
+				return
 			}
+
+			b.log.Error("vulcand/oxy/buffer: error when reading request body, err: %v", err)
+			b.errHandler.ServeHTTP(w, req, err)
+
+			return
 		}
-	}()
 
-	// We need to set ContentLength based on known request size. The incoming request may have been
-	// set without content length or using chunked TransferEncoding
-	totalSize, err := body.Size()
-	if err != nil {
-		b.log.Error("vulcand/oxy/buffer: failed to get request size, err: %v", err)
-		b.errHandler.ServeHTTP(w, req, err)
+		// Set request body to buffered reader that can replay the read and execute Seek
+		// Note that we don't change the original request body as it's handled by the http server
+		// and we don't want to mess with standard library
+		defer func() {
+			if body != nil {
+				errClose := body.Close()
+				if errClose != nil {
+					b.log.Error("vulcand/oxy/buffer: failed to close body, err: %v", errClose)
+				}
+			}
+		}()
 
+		// We need to set ContentLength based on known request size. The incoming request may have been
+		// set without content length or using chunked TransferEncoding
+		totalSize, err = body.Size()
+		if err != nil {
+			b.log.Error("vulcand/oxy/buffer: failed to get request size, err: %v", err)
+			b.errHandler.ServeHTTP(w, req, err)
+
+			return
+		}
+
+		if totalSize == 0 {
+			body = nil
+		}
+
+		outReq = b.copyRequest(req, body, totalSize)
+	}
+
+	if b.disableResponse {
+		b.next.ServeHTTP(w, outReq)
 		return
 	}
-
-	if totalSize == 0 {
-		body = nil
-	}
-
-	outReq := b.copyRequest(req, body, totalSize)
 
 	attempt := 1
 
@@ -220,7 +243,7 @@ func (b *Buffer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			reader = rdr
 		}
 
-		if (b.retryPredicate == nil || attempt > DefaultMaxRetryAttempts) ||
+		if body == nil || (b.retryPredicate == nil || attempt > DefaultMaxRetryAttempts) ||
 			!b.retryPredicate(&context{r: req, attempt: attempt, responseCode: bw.code}) {
 			utils.CopyHeaders(w.Header(), bw.Header())
 			w.WriteHeader(bw.code)
@@ -236,7 +259,7 @@ func (b *Buffer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 		if body != nil {
 			if _, err := body.Seek(0, 0); err != nil {
-				b.log.Error("vulcand/oxy/buffer: failed to rewind response body, err: %v", err)
+				b.log.Error("vulcand/oxy/buffer: failed to rewind request body, err: %v", err)
 				b.errHandler.ServeHTTP(w, req, err)
 
 				return

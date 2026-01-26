@@ -69,6 +69,24 @@ func ErrorHandler(h utils.ErrorHandler) Option {
 	}
 }
 
+// DisableRequestBuffer disables request buffering.
+func DisableRequestBuffer() Option {
+	return func(b *Buffer) error {
+		b.disableRequest = true
+
+		return nil
+	}
+}
+
+// DisableResponseBuffer disables response buffering.
+func DisableResponseBuffer() Option {
+	return func(b *Buffer) error {
+		b.disableResponse = true
+
+		return nil
+	}
+}
+
 // MaxRequestBodyBytes sets the maximum request body size in bytes.
 func MaxRequestBodyBytes(m int64) Option {
 	return func(b *Buffer) error {
